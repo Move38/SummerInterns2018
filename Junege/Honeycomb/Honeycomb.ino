@@ -2,6 +2,8 @@ Color colors[] = {RED, ORANGE, CYAN, GREEN, BLUE, MAGENTA };
 
 #include "Serial.h"
 
+//this is the documentation for Honey comb
+
 ServicePortSerial Serial;
 
 //-- base variables
