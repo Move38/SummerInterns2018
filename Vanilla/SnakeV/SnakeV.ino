@@ -106,7 +106,7 @@ void loop(){
 
   FOREACH_FACE(f){
     if(didValueOnFaceChange(f)){
-      Serial.print("on face ");
+      Serial.print("On face ");
       Serial.print(f);
       Serial.print(" value changes to ");
       Serial.println(getLastValueReceivedOnFace(f));
@@ -128,10 +128,11 @@ void loop(){
 
   }
   else if(state == GAMEPLAY){
-  
+
     //if snake head is here
-    if(passToFace == IMPOSSIBLEINDEX && snakeFace != IMPOSSIBLEINDEX){
+    if(snakeFace != IMPOSSIBLEINDEX){
       
+
       moveSnakeForward();
       
       if(buttonSingleClicked()){
@@ -145,23 +146,27 @@ void loop(){
           //pass snake when press button and the head is facing other blinks
           passToFace = snakeFace;//then will never do moveSnakeForward every frame
           passSnake();
-
+          snakeFace = IMPOSSIBLEINDEX;
           //update snake position according to the dir and passToFace
-          moveSnakeForward();
+          //moveSnakeForward();
           
         }else{
-          Serial.print("face isn't touched on face ");
-          Serial.println(snakeFace);
+          //Serial.print("face isn't touched on face ");
+          //Serial.println(snakeFace);
           //snakeLength --;//tell other's as well
         }
         
       }
       
     }else{
-      
+      Serial.print("snake head out:");
+      Serial.println(snakeFace);
       //detect move forward message and length change messgae
       detectMessage();
     }
+
+
+    drawFace();
     
   }
   else if(state == GAMEOVER){
@@ -171,6 +176,7 @@ void loop(){
 }
 
 void reset(){
+  //Serial.println("reset");
   setColor(GREEN);
 
   state = READY;
@@ -262,6 +268,10 @@ void updateSnakeArray(){
     return;
   }
 
+  if(passFromFace != IMPOSSIBLEINDEX){
+    
+  }
+
 
    int32_t newArray[] = {0,0,0,0,0,0};
     
@@ -278,20 +288,28 @@ void updateSnakeArray(){
       //if there are body parts
       if(originalNum > 0){//0 means nothing there
 
-        //max should equal to length, when exceeds, don't place forward
+        //max should equal to length
         if(originalNum > snakeLength){
-
+          //when exceeds, don't place forward
         }else{
           
           if(i == passFromFace){
             //if the point here is the last one
             if(originalNum == snakeLength){
-               passFromFace = IMPOSSIBLEINDEX;
+              Serial.print("Tail is leaving the old piece through face ");
+              Serial.println(passFromFace);
+              //Serial.println("reset passFromFace to IMPOSSIBLEINDEX");
+              passFromFace = IMPOSSIBLEINDEX;
 
             }else{
+              Serial.print("Add snake part ");
+              Serial.print(originalNum+1);
+              Serial.print(" to face ");
+              Serial.println(i);
               //add a new one
               newArray[i] = originalNum + 1; 
               byte data = newArray[i]<<2+UPDATE;
+              //Serial.println("set update message to the old pieces");
               //send message to passFromFace, ask it to update array
               setValueSentOnFace(data,passFromFace);
             }
@@ -299,7 +317,11 @@ void updateSnakeArray(){
           }else if(i == passToFace){
               //do nothing, and if it's the tail, then end passing to the face
               if(originalNum == snakeLength){
+                Serial.print("Tail leaves through face ");
+                Serial.println(passToFace);
+                //Serial.println("reset passToFace to IMPOSSIBLEINDEX");
                 passToFace = IMPOSSIBLEINDEX;
+                //snakeFace = IMPOSSIBLEINDEX;
                 isSnakeHere = false;
               }
 
@@ -309,22 +331,34 @@ void updateSnakeArray(){
 
             if(newNum > 5) newNum = 0;//detect to in the future
             if(newNum < 0) newNum = 5;
-            
-            //detect head touches apple here
+          
+            Serial.print("Snake part ");
+            Serial.print(originalNum);
+            Serial.print(" goes from ");
+            Serial.print(i);
+            Serial.print(" to ");
+            Serial.println(newNum);
+
+            //if it's the head part
             if(originalNum == 1) {
               //update snakeFace
               snakeFace = newNum ;
+              Serial.print("snakeFace updates to ");
+              Serial.println(snakeFace);
 
-              
+              //if there is an apple the forward place 
               if(numSnakeArray[newNum] == APPLE){
+
                 //max length is 6
                 if(snakeLength <= 6){
                    snakeLength++;
                    //send messge to from and to
-                   if(passFromFace > -1){
+                   if(passFromFace != IMPOSSIBLEINDEX){
                      //update length-----------------------------------------
                      byte data = (snakeLength<<2)+LENGTH;
                      //send messgae to the next blinks through snakeface
+                     //Serial.print("snake hits apple, its length updates to ");
+                     //Serial.println(snakeLength);
                      setValueSentOnFace(data,passFromFace);
                    }
                 }
@@ -364,7 +398,7 @@ void updateLength(){
       int num = numSnakeArray[i];
       if(num + 1 > snakeLength - 1){
         //if exceeds the maxlength, reset it to null and update
-        Serial.println("Delete one at tail");
+        //Serial.println("Delete one at tail");
         addANewOne = false;
         numSnakeArray[i] = -1;
       }else if(num + 1 == snakeLength - 1){
@@ -386,13 +420,13 @@ void updateLength(){
     int num = numSnakeArray[newNum];
     if(num < 0){
       //if here is empty or apple
-      Serial.println("Add one after tail");
+      //Serial.println("Add one after tail");
       numSnakeArray[newNum] = snakeLength - 1;
     }
     
    }
   updateSnakeArray();
-  drawFace();
+  
    
 }
 
@@ -401,10 +435,10 @@ void detectMessage(){
     if(!isValueReceivedOnFaceExpired(f)){
 
       byte data = getLastValueReceivedOnFace(f);
-      Serial.print("receive message ");
-      Serial.print(data);
-      Serial.print(" on face ");
-      Serial.println(f);
+      // Serial.print("receive message ");
+      // Serial.print(data);
+      // Serial.print(" on face ");
+      // Serial.println(f);
 
       if(data < 4){
           return;
@@ -412,8 +446,8 @@ void detectMessage(){
 
       
       MessageMode mode = static_cast<MessageMode>(data&3);
-      Serial.print("receive message mode ");
-      Serial.println(data&3);
+      //Serial.print("receive message mode ");
+      //Serial.println(data&3);
 
       if(mode == UPDATE){//1
         if(passToFace != IMPOSSIBLEINDEX 
@@ -423,7 +457,7 @@ void detectMessage(){
           Serial.print(data>>2);
           Serial.println(" on the old pieces");
           updateSnakeArray();
-          drawFace();
+          //drawFace();
           
         }
 
@@ -443,8 +477,10 @@ void detectMessage(){
          passFromFace = f;
          numSnakeArray[f] = 1;
          isSnakeHere = true;
+        
          Serial.print("  snakeFace:");
          Serial.println(snakeFace);
+         faceIncreTimer.set(snakeFaceIncrement_ms);
            
       }else if(mode == LENGTH){//3
 
@@ -472,21 +508,22 @@ void drawFace(){
 
   FOREACH_FACE(f){
     byte brightness;
-    int distFromHead = numSnakeArray[f] - 1;
     byte hueAdjusted;
 
-    if(distFromHead == 6) {
-      hueAdjusted = 0;
+    if(numSnakeArray[f] == APPLE) {
       //draw apple
+      hueAdjusted = 0;
       brightness = 255;
     }else{
-      if(distFromHead >= 0) {
+
+      int distFromHead = numSnakeArray[f] - 1;
+      if(distFromHead > 0) {
         hueAdjusted = 8 * ((32 + snakeHue - distFromHead) % 32);
   //      Serial.print("face:");
   //      Serial.println(f);
   //      Serial.print("distFromHead:");
   //      Serial.println(distFromHead);
-          brightness = 255 - (64 * distFromHead); // scale the brightness to 8 bits and dimmer based on distance from head
+          brightness = 255 - (32 * distFromHead); // scale the brightness to 8 bits and dimmer based on distance from head
         
        } else {
       
