@@ -1,6 +1,6 @@
 ### Move38 Summer Intern - 2018
-# [Name](http://yourawesomewebsite.com)
-Short Bio (280 characters :)
+# [Justin Ha](justinha.games)
+Game Design major at NYU having fun messing around in Blinks!
 
 ## Stuff in this repo
 1. games
