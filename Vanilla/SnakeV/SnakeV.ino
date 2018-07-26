@@ -159,7 +159,6 @@ void loop(){
       }
       
     }else{
-      Serial.println(snakeFace);
       //detect move forward message and length change messgae
       detectMessage();
     }
@@ -358,8 +357,8 @@ void updateSnakeArray(){
             if(originalNum == 1) {
               //update snakeFace
               snakeFace = newNum ;
-              Serial.print("snakeFace updates to ");
-              Serial.println(snakeFace);
+              // Serial.print("snakeFace updates to ");
+              // Serial.println(snakeFace);
 
               //if there is an apple the forward place 
               if(numSnakeArray[newNum] == APPLE){
@@ -404,11 +403,6 @@ void updateSnakeArray(){
     }
 
     memcpy( numSnakeArray, newArray, 6*sizeof(uint32_t) );
-}
-
-//update the snake part on the face f to the next face
-void updateSnakeOnFace(byte i){
-
 }
 
 void updateLength(){
@@ -466,8 +460,8 @@ void detectMessage(){
 
       
       MessageMode mode = static_cast<MessageMode>(data&3);
-      //Serial.print("receive message mode ");
-      //Serial.println(data&3);
+      Serial.print("receive message mode ");
+      Serial.println(data&3);
 
       if(mode == UPDATE){//1
         if(passToFace != IMPOSSIBLEINDEX 
@@ -536,7 +530,7 @@ void drawFace(){
       //draw apple
       hueAdjusted = 0;
       brightness = 255;
-      
+
     }else if(snakeIndexOnFace > 0){
 
       int distFromHead = snakeIndexOnFace - 1;
