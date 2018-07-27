@@ -52,9 +52,10 @@ byte snakeLength = 0;// maximun is 6
 byte snakeDirection = CLOCKWISE;
 
 uint32_t snakeFaceIncrement_ms = 250;
-uint32_t nextSnakeFaceIncrement_ms = 0;
+uint32_t appleGenerate_ms = 250;
 
-Timer faceIncreTimer;
+Timer faceIncreTimer, appleGenerateTimer;
+byte maxAppleNum = 2;
 
 //store number of the snake on each face, 0 is null, from 1 - 6
 uint32_t numSnakeArray[] = {
@@ -128,11 +129,10 @@ void loop(){
 
   }
   else if(state == GAMEPLAY){
-    //Serial.println(snakeFace);
+  
     //if snake head is here
     if(snakeFace != IMPOSSIBLEINDEX){
       
-
       moveSnakeForward();
       
       if(buttonSingleClicked()){
@@ -159,6 +159,8 @@ void loop(){
       }
       
     }else{
+      // generate apple
+      generateApple();
       //detect move forward message and length change messgae
       detectMessage();
     }
@@ -171,6 +173,30 @@ void loop(){
     
   }
   
+}
+
+void generateApple(){
+  if(appleGenerateTimer.isExpired()){
+
+    //check if apple amount exceeds the maximum
+    int appleNum = 0;
+    FOREACH_FACE(f){
+      if(numSnakeArray[f] == APPLE){
+        appleNum++;
+      }
+    }
+    //if apple is less than the maximum, then generate a new one
+    if(appleNum < maxAppleNum){
+      int randFace = rand(5);//random 0 - 5
+      if(rand(10)>9 && numSnakeArray[randFace] == 0){
+        Serial.println("generate an apple");
+        numSnakeArray[randFace] = APPLE;
+      }
+    }
+
+    appleGenerateTimer.set(appleGenerate_ms);
+  }
+
 }
 
 void reset(){
@@ -246,11 +272,10 @@ void passSnake(){
 //update snake position and display
 void moveSnakeForward(){
 
-  //uint32_t now = millis();
-  if( faceIncreTimer.isExpired() ) {
-    //Serial.println("update");  
-    updateSnakeArray();//it will call the next one to update
-    //nextSnakeFaceIncrement_ms = now + snakeFaceIncrement_ms;
+  if(faceIncreTimer.isExpired() ) {
+    
+    updateSnakeArray();
+    
     faceIncreTimer.set(snakeFaceIncrement_ms);
   }
 
@@ -362,15 +387,14 @@ void updateSnakeArray(){
                 //max length is 6
                 if(snakeLength <= 6){
                    snakeLength++;
-                   //send messge to from and to
-                   if(passFromFace != IMPOSSIBLEINDEX){
-                     //update length-----------------------------------------
-                     byte data = (snakeLength<<2)+LENGTH;
-                     //send messgae to the next blinks through snakeface
-                     //Serial.print("snake hits apple, its length updates to ");
-                     //Serial.println(snakeLength);
-                     setValueSentOnFace(data,passFromFace);
-                   }
+
+                   //update length-----------------------------------------
+                   byte data = (snakeLength<<2)+LENGTH;
+                   //send messgae to the next blinks through snakeface
+                   Serial.print("snake hits apple, its length updates to ");
+                   Serial.println(snakeLength);
+
+                   setValueSentOnFace(data,passFromFace);
                 }
                 //add flash visual feedbacks
               }
@@ -479,7 +503,7 @@ void detectMessage(){
         snakeLength = newLength;
         
         //if tail is here
-        if(passFromFace < 0){
+        if(passFromFace == IMPOSSIBLEINDEX){
           updateLength();
         }else{
           //tell the next to find tail and change length
@@ -585,4 +609,5 @@ void setStateToGameplayAndSendOutToAllConnected(byte face){
   state = GAMEPLAY;
   sendStateOnConnectedFace(face);
   faceIncreTimer.set(snakeFaceIncrement_ms);
+  appleGenerateTimer.set(appleGenerate_ms);
 }
