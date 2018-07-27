@@ -163,7 +163,7 @@ void loop(){
       detectMessage();
     }
 
-
+    //draw face very frame during gameplay state
     drawFace();
     
   }
@@ -234,8 +234,8 @@ void passSnake(){
   Serial.print("Snake passing on face ");
   Serial.print(snakeFace);
   Serial.print(" with data ");
-  Serial.println(data);  
-  Serial.print("Direction:");
+  Serial.print(data);  
+  Serial.print(": Direction:");
   Serial.print(snakeDirection);
   Serial.print("  snakeLength:");
   Serial.println(snakeLength);
@@ -292,22 +292,24 @@ void updateSnakeArray(){
             //if the point here is the last one
             if(originalNum == snakeLength){
 
-              Serial.print("Tail is leaving the old piece through face ");
+              Serial.print("close fromFace; tail in through face ");
               Serial.println(passFromFace);
-              //Serial.println("reset passFromFace to IMPOSSIBLEINDEX");
+
+
               passFromFace = IMPOSSIBLEINDEX;
 
               isForward = false;
             }else{
               //if it's not the last one, add the one after it here
               newArray[i] = originalNum + 1; 
-              byte data = (newArray[i]<<2) + UPDATE;
+              
               //send message to passFromFace, ask it to update array
+              byte data = (newArray[i]<<2) + UPDATE;
               setValueSentOnFace(data,passFromFace);
-
-              Serial.print("send update data ");
+ 
+              Serial.print("send update cmd: ");
               Serial.print(data);
-              Serial.print(" to face ");
+              Serial.print(" to passFromFace");
               Serial.println(passFromFace);
 
               isForward = true;
@@ -319,7 +321,7 @@ void updateSnakeArray(){
           if(i == passToFace){
             //do nothing, and if it's the tail, then end passing to the face
             if(originalNum == snakeLength){
-              Serial.print("Tail leaves through face ");
+              Serial.print("Tail leaves this tile through face ");
               Serial.println(passToFace);
               //Serial.println("reset passToFace to IMPOSSIBLEINDEX");
               passToFace = IMPOSSIBLEINDEX;
@@ -399,6 +401,96 @@ void updateSnakeArray(){
     memcpy( numSnakeArray, newArray, 6*sizeof(uint32_t) );
 }
 
+void detectMessage(){
+  FOREACH_FACE(f) {
+    if(!isValueReceivedOnFaceExpired(f)){
+
+      byte data = getLastValueReceivedOnFace(f);
+      // Serial.print("receive message ");
+      // Serial.print(data);
+      // Serial.print(" on face ");
+      // Serial.println(f);
+
+      if(data < 4){
+          return;
+      }
+
+      
+      MessageMode mode = static_cast<MessageMode>(data&3);
+      // Serial.print("receive message mode ");
+      // Serial.println(data&3);
+
+      if(mode == UPDATE){//1
+        if(passToFace != IMPOSSIBLEINDEX ){
+          //only when it calls the right index of the first body
+          byte lastestGoneSnake = (data >> 2);
+
+          if(numSnakeArray[passToFace] == lastestGoneSnake){
+            Serial.print("delete body index:");
+            Serial.print(lastestGoneSnake);
+            Serial.println(" on the old pieces");
+
+            updateSnakeArray();
+            //setValueSentOnFace(passToFace);????????????????
+          }
+          //drawFace();
+          
+        }
+
+      }else if(mode == DATA){//2
+
+      //only when there is no snake face in the piece, then receive new snake data
+        //pass to face should not equal to pass from face
+        if(snakeFace == IMPOSSIBLEINDEX && passToFace != f){
+          Serial.println("new blink get data for the snake");
+          Direction dir = static_cast<Direction>((data & 4) >> 2);
+          //get direction
+          snakeDirection = dir;
+          Serial.print("Direction:");
+          Serial.print(dir);
+          //get length
+           snakeLength = (data >> 3);
+           Serial.print("  snakeLength:");
+           Serial.print(snakeLength);
+           //get hue
+           //snakeHue = 4 * ((data & 31) >> 2);
+           // Serial.print("  snakeHue:");
+           // Serial.print(snakeHue);
+
+           snakeFace = f;
+           passFromFace = f;
+           numSnakeArray[f] = 1;
+           isSnakeHere = true;
+          
+          //send message to passFromFace, ask it to update array
+          byte data = (1<<2) + UPDATE;
+          setValueSentOnFace(data,passFromFace);
+
+           Serial.print("  snakeFace:");
+           Serial.println(snakeFace);
+           faceIncreTimer.set(snakeFaceIncrement_ms); 
+        }
+        
+           
+      }else if(mode == LENGTH){//3
+
+        //only have length
+        int newLength = data >> 2;
+        snakeLength = newLength;
+        
+        //if tail is here
+        if(passFromFace < 0){
+          updateLength();
+        }else{
+          //tell the next to find tail and change length
+          setValueSentOnFace(data,passFromFace);
+        }
+        
+      }
+    }
+  }
+}
+
 void updateLength(){
   bool addANewOne = true;
   int lastFace = -1;
@@ -438,86 +530,6 @@ void updateLength(){
    
 }
 
-void detectMessage(){
-  FOREACH_FACE(f) {
-    if(!isValueReceivedOnFaceExpired(f)){
-
-      byte data = getLastValueReceivedOnFace(f);
-      // Serial.print("receive message ");
-      // Serial.print(data);
-      // Serial.print(" on face ");
-      // Serial.println(f);
-
-      if(data < 4){
-          return;
-      }
-
-      
-      MessageMode mode = static_cast<MessageMode>(data&3);
-      // Serial.print("receive message mode ");
-      // Serial.println(data&3);
-
-      if(mode == UPDATE){//1
-        if(passToFace != IMPOSSIBLEINDEX ){
-          //only when it calls the right index of the first body
-          byte lastestGoneSnake = (data >> 2);
-          // Serial.print("update body index:");
-          // Serial.print(lastestGoneSnake);
-          // Serial.println(" on the old pieces");
-
-          if(numSnakeArray[passToFace] == lastestGoneSnake)
-            updateSnakeArray();
-          //drawFace();
-          
-        }
-
-      }else if(mode == DATA){//2
-        Serial.println("new blink get data for the snake");
-        Direction dir = static_cast<Direction>((data & 4) >> 2);
-        //get direction
-        snakeDirection = dir;
-        Serial.print("Direction:");
-        Serial.print(dir);
-        //get length
-         snakeLength = (data >> 3);
-         Serial.print("  snakeLength:");
-         Serial.print(snakeLength);
-         //get hue
-         //snakeHue = 4 * ((data & 31) >> 2);
-         // Serial.print("  snakeHue:");
-         // Serial.print(snakeHue);
-         
-         snakeFace = f;
-         passFromFace = f;
-         numSnakeArray[f] = 1;
-         isSnakeHere = true;
-        
-        //send message to passFromFace, ask it to update array
-        byte data = (1<<2) + UPDATE;
-        setValueSentOnFace(data,passFromFace);
-
-         Serial.print("  snakeFace:");
-         Serial.println(snakeFace);
-         faceIncreTimer.set(snakeFaceIncrement_ms);
-           
-      }else if(mode == LENGTH){//3
-
-        //only have length
-        int newLength = data >> 2;
-        snakeLength = newLength;
-        
-        //if tail is here
-        if(passFromFace < 0){
-          updateLength();
-        }else{
-          //tell the next to find tail and change length
-          setValueSentOnFace(data,passFromFace);
-        }
-        
-      }
-    }
-  }
-}
 
 void drawFace(){
   //draw snake using length and snakeface
