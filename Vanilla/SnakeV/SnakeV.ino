@@ -54,7 +54,7 @@ uint32_t snakeFaceIncrement_ms = 250;
 uint32_t appleGenerate_ms = 250;
 
 Timer faceIncreTimer, appleGenerateTimer;
-byte appleFace;
+byte appleFace = IMPOSSIBLEINDEX;
 
 //store number of the snake on each face, 0 is null, from 1 - 6
 uint32_t numSnakeArray[] = {
@@ -134,7 +134,8 @@ void loop(){
       
       moveSnakeForward();
       
-      if(buttonSingleClicked()){
+      //when snake head just passed from the face, don't pass again
+      if(buttonSingleClicked() && snakeFace != passFromFace){
         Serial.println("gameplay: click");
 
         if(!isValueReceivedOnFaceExpired(snakeFace)){
@@ -148,9 +149,16 @@ void loop(){
           snakeFace = IMPOSSIBLEINDEX;
 
         }else{
-          Serial.print("Wrong click on ");
+          Serial.print("length --:");
           Serial.println(snakeFace);
-          //snakeLength --;//tell other's as well
+          snakeLength --;//tell other's as well
+          
+          if(passFromFace != IMPOSSIBLEINDEX){
+            byte data = (snakeLength<<2)+LENGTH;
+            setValueSentOnFace(data,passFromFace);
+          }
+
+          
         }
         
       }
@@ -172,24 +180,38 @@ void loop(){
   
 }
 
-void generateApple(){
-  if(appleGenerateTimer.isExpired()){
-
-    if(appleFace != IMPOSSIBLEINDEX){
-      //if here is apple, apple disappear, reset appleface
+void destroyApple(){
+  //if here is apple, apple disappear, reset appleface
       if(numSnakeArray[appleFace] == APPLE){
         Serial.println("apple self destroy");
         numSnakeArray[appleFace] = 0;
-        appleFace = IMPOSSIBLEINDEX;
+
+        //reset timer to generate timer
+        appleGenerateTimer.set(appleGenerate_ms);
       }
+      //reset appleFace
+      appleFace = IMPOSSIBLEINDEX;
+}
+void generateApple(){
+  if(appleGenerateTimer.isExpired()){
+    
+    if(appleFace != IMPOSSIBLEINDEX){
+      destroyApple();
+      
     }else{
       int randFace = rand(5);//random 0 - 5
-      if(rand(10)>9 && numSnakeArray[randFace] == 0){
+
+      if(numSnakeArray[randFace] == 0){
         Serial.println("apple generate");
         numSnakeArray[randFace] = APPLE;
         appleFace = randFace;
+        //set timer for self-destroy
+        appleGenerateTimer.set(appleGenerate_ms*100);
+      }else{
+        appleGenerateTimer.set(appleGenerate_ms);
       }
-      appleGenerateTimer.set(appleGenerate_ms*10);
+      
+      
     }
 
     
@@ -281,8 +303,8 @@ void moveSnakeForward(){
 void updateSnakeArray(){
   if(snakeLength <= 0){
     Serial.println("snake is dead");
-    //reset();
-    //setValueSentOnAllFaces(RESET);
+    setFaceColor(WHITE,snakeFace);
+    state = GAMEOVER;
     return;
   }
 
@@ -367,6 +389,8 @@ void updateSnakeArray(){
 
               //if there is an apple the forward place 
               if(numSnakeArray[newNum] == APPLE){
+                //eat apple
+                destroyApple();
 
                 //max length is 6
                 if(snakeLength <= 6){
@@ -377,7 +401,7 @@ void updateSnakeArray(){
                    //send messgae to the next blinks through snakeface
                    Serial.print("Hits APPLE, length updates to ");
                    Serial.println(snakeLength);
-
+                   
                    setValueSentOnFace(data,passFromFace);
                 }
                 //add flash visual feedbacks
@@ -459,6 +483,7 @@ void detectMessage(){
 
            passFromFace = f;
            if(numSnakeArray[f] == APPLE){
+            destroyApple();
             Serial.println("hit apple during transfering.");
             snakeLength++;
            }
