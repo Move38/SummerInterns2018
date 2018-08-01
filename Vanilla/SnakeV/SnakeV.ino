@@ -145,16 +145,15 @@ void loop(){
           snakeFace = IMPOSSIBLEINDEX;
 
         }else{
-          Serial.print("length --:");
-          Serial.println(snakeFace);
-          snakeLength --;//tell other's as well
+          // Serial.print("length --:");
+          // Serial.println(snakeFace);
+          // snakeLength --;//tell other's as well
           
-          if(passFromFace != IMPOSSIBLEINDEX){
-            byte data = (snakeLength<<2)+LENGTH;
-            setValueSentOnFace(data,passFromFace);
-          }
+          // if(passFromFace != IMPOSSIBLEINDEX){
+          //   byte data = (snakeLength<<2)+LENGTH;
+          //   setValueSentOnFace(data,passFromFace);
+          // }
 
-          
         }
         
       }
@@ -313,9 +312,15 @@ void updateSnakeArray(){
     
     //default snake length didn't increase
     bool isSnakeLengthIncreased = false;
+    Serial.println("//");
     //check head first
-    for(int i = snakeFace; i < snakeFace+6; i++){
-      i= i % 6;
+    for(int j = 0; j < 6; j++){
+      int i;
+      if(snakeFace != IMPOSSIBLEINDEX){
+        i= (snakeFace+j*dir);
+      }
+      i = i % 6;
+      Serial.print(i);
       //get the original index
       int originalNum = numSnakeArray[i];
 
