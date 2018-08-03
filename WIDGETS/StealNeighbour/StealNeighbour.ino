@@ -13,12 +13,13 @@ ServicePortSerial Serial;
 
 byte colorIndex;
 bool isHeroHere;
-// color random
-Color colors[] = {    
-  WHITE,            
-  RED,                
-}; 
 
+enum MessageMode{
+  EMPTY = 0,//null
+  STEAL = 1,
+  STOLEN = 2,
+  NOHERO = 3,
+};
 
 void setup() {
   // Blank
@@ -31,10 +32,19 @@ void setup() {
 void loop() {
 
   if(buttonSingleClicked()){
-    isHeroHere = true;
+    //change state
+    if(isHeroHere){
+      isHeroHere = false;
+    }else{
+      isHeroHere = true;
+    }
+    //reset values on all the faces
+    setValueSentOnAllFaces(EMPTY);
+
     return;
   }
 
+  //get it only once
   bool isStealNeighbour = buttonDoubleClicked();
 
   FOREACH_FACE(f) {
@@ -46,42 +56,49 @@ void loop() {
         Serial.print("steal hero on face:");
         Serial.println(f);
         //send message
-        setValueSentOnFace(1,f);
+        setValueSentOnFace(STEAL,f);
 
-      }else if(didValueOnFaceChange(f)){
+      }else if(didValueOnFaceChange( f )){
         //only when message change then come in
         //receive message
         byte data = getLastValueReceivedOnFace( f );
-        if(data == 1 ){
+        if(data == STEAL ){
+          //when hero is here
           if(isHeroHere){
-
+            //hero is no longer here
             isHeroHere = false;
-            setValueSentOnFace(2,f);
+            //report hero is no here
+            setValueSentOnFace(STOLEN,f);
 
             Serial.print("Hero steal by neighbor on face:");
             Serial.println(f);
 
           }else{
-
-            setValueSentOnFace(3,f);
+            //hero is not here, report no hero
+            setValueSentOnFace(NOHERO,f);
 
             Serial.print("send back no hero on face:");
             Serial.println(f);
           }
           
-        }else if(data == 2){
-
+        }else if(data == STOLEN){
+          //steal hero from face f
           if(isHeroHere == false){
-            isHeroHere = true;
+            
             Serial.print("Steal hero on face:");
             Serial.println(f);
+
+            //when no hero here, now hero is here
+            isHeroHere = true;
+            //stop sending steal message
             setValueSentOnAllFaces(0);
           }
 
-        }else if(data == 3){
+        }else if(data == NOHERO){
            Serial.print("No hero on face:");
           Serial.println(f);
-          setValueSentOnFace(0,f);
+          //No hero on face f, stop sending steal message
+          setValueSentOnFace(EMPTY,f);
         }
 
         
@@ -90,7 +107,7 @@ void loop() {
     }else{
       //when no face connects
       //empty message
-      setValueSentOnFace(0,f);
+      setValueSentOnFace(EMPTY,f);
     }
   
   }
@@ -99,7 +116,7 @@ void loop() {
   if(isHeroHere){
     setColor(RED);
   }else{
-    setColor(WHITE);
+    setColor(OFF);
   }
 
   
