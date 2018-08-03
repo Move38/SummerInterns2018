@@ -50,3 +50,9 @@ Temporary Items
 #Artifacts
 debug/
 release/
+
+build/
+Vanilla./vscode
+vanilla.code-workspace
+Vanilla/.vscode/c_cpp_properties.json
+Vanilla/.vscode/arduino.json

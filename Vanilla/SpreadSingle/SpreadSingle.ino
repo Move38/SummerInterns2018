@@ -1,50 +1,91 @@
 /*
- * Brightness By Number/Neighbor
+ * Spready once by single-click
  * 
- * An example showing how to count the number of neighbors.
+ * An example showing how to communicate with surrounding blinks
  * 
- * Each Blink displays a brightness based on the number of neighbors around it.
+ * When single-clicked, a single blinks color directly touching pieces
  *  
  */
+#include <Arduino.h>
+#include <Serial.h>
 
-//human eyes have difficulties recognzing when brightness are changing linearly
-//have a array for different number of neighour
-int brightnessArray[] = {
-  255,//no neighbour
-  155,//1 neighbour
-  100,//2 neighbour
-  60,//3 neighbour
-  30,//4 neighbour
-  4,//5 neighbour
-  0,//6 neighbour
-};
+ServicePortSerial Serial;
+
+byte colorIndex;
+// color random
+Color colors[] = {    
+  RED,            
+  YELLOW,         
+  GREEN,          
+  CYAN,           
+  BLUE,           
+  MAGENTA,        
+}; 
+
 
 void setup() {
   // Blank
+  colorIndex = rand(5);
+  Color color = colors[colorIndex];
+  setColor(color);
+  Serial.begin();
+  Serial.println("Spread single Debug");
 }
 
 
 void loop() {
 
-  // count neighbors we have right now
-  int numNeighbors = 0;
+  if(buttonSingleClicked()){
+    colorIndex = rand(5);
+    Color color = colors[colorIndex];
+    setColor(color);
+    setValueSentOnAllFaces(0);
+    return;
+  }
+
+  bool isColorNeighbour = buttonDoubleClicked();
 
   FOREACH_FACE(f) {
 
     if ( !isValueReceivedOnFaceExpired( f ) ) {      // Have we seen an neighbor on this face recently?
-      numNeighbors++;
+
+      if(isColorNeighbour){
+        Serial.print("set Color change value on face:");
+        Serial.println(f);
+        //send message
+        setValueSentOnFace(colorIndex + 1,f);
+
+      }else if(didValueOnFaceChange(f)){
+        //only when message change then come in
+        //receive message
+        byte data = getLastValueReceivedOnFace( f );
+        if(data > 0){
+          colorIndex = data - 1;
+
+          Serial.print("Color changed by neighbor on face:");
+          Serial.print(f);
+          Serial.print(" to color:");
+          Serial.println(colorIndex);
+          setColor(colors[colorIndex]);
+        }
+
+        
+      }
+
+    }else{
+      //when no face connects
+      //empty message
+      setValueSentOnFace(0,f);
     }
   
   }
 
-  int brightness = brightnessArray[numNeighbors];//255/pow(2,numNeighbors);
-
-  // look up the color to show based on number of neighbors
-  // No need to bounds check here since we know we can never see more than 6 neighbors 
-  // because we only have 6 sides.
-  setColor(makeColorHSB( 0, 255, brightness));
-  // setColor( colors[ numNeighbors ] );
   
+
+  
+
 }
+
+
 
 
