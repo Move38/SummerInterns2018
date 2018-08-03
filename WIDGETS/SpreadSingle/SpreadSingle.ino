@@ -1,5 +1,5 @@
 /*
- * Spready once by double-click, single-click to change color
+ * Spready once by single-click
  * 
  * An example showing how to communicate with surrounding blinks
  * 
