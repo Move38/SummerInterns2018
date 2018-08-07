@@ -1,13 +1,13 @@
 /*
- *  Template for creating a game that has a move action that needs to be communicated across
- *  the entire board. i.e. Each move a player makes causes a stepwise reaction
- *
- *  TODO: If a single move is missed, the counters will get out of sync, one possible sol'n
- *  is to share the turn count and make sure that you are up to date with the highest. This
- *  of course does not allow a Blink to understand the context of the previous moves, so
- *  catching up in the game may be useful or not depending on the needs. If the game simply
- *  needs to end after 40 moves, then catching up the game counter is a worthy sol'n.
- */
+    Template for creating a game that has a move action that needs to be communicated across
+    the entire board. i.e. Each move a player makes causes a stepwise reaction
+
+    TODO: If a single move is missed, the counters will get out of sync, one possible sol'n
+    is to share the turn count and make sure that you are up to date with the highest. This
+    of course does not allow a Blink to understand the context of the previous moves, so
+    catching up in the game may be useful or not depending on the needs. If the game simply
+    needs to end after 40 moves, then catching up the game counter is a worthy sol'n.
+*/
 
 byte gameState;
 byte playerCount = 4; //how many players there are
@@ -27,8 +27,8 @@ void setup() {
 }
 
 /*###################
- *      BEGIN LOOP
- *###################*/
+        BEGIN LOOP
+  ###################*/
 void loop() {
 
   if (isAlone()) {
@@ -50,56 +50,56 @@ void loop() {
   }
 
   // communicate our state to others
-  setValueSentOnAllFaces(gameState); //relay our game state to our neighbors 
+  setValueSentOnAllFaces(gameState); //relay our game state to our neighbors
 
 }
 /*###################
- *      END LOOP
- *###################*/
+        END LOOP
+  ###################*/
 
 
 
 /*------------------------------------------------------------
- *                  MOVE STATE LOGIC
- *------------------------------------------------------------*/
+                    MOVE STATE LOGIC
+  ------------------------------------------------------------*/
 void idleLoop () {
 
   // check surroundings for neighbor in progress
   FOREACH_FACE(f) {
     // if a neighboring piece is move in progress, then we should be as well
-    if (!isValueReceivedOnFaceExpired(f) && getLastValueReceivedOnFace(f) == MOVE_IN_PROGRESS) { 
+    if (!isValueReceivedOnFaceExpired(f) && getLastValueReceivedOnFace(f) == MOVE_IN_PROGRESS) {
       gameState = MOVE_IN_PROGRESS;
     }
   }
 
   /**********************************************************
-   *       [BEGIN] REPLACE THIS WITH YOUR TURN MECHANISM
+           [BEGIN] REPLACE THIS WITH YOUR TURN MECHANISM
    **********************************************************/
-  if(buttonPressed()) {
-      gameState = MOVE_IN_PROGRESS;    
+  if (buttonPressed()) {
+    gameState = MOVE_IN_PROGRESS;
   }
   /**********************************************************
-   *       [END] REPLACE THIS WITH YOUR TURN MECHANISM
+           [END] REPLACE THIS WITH YOUR TURN MECHANISM
    **********************************************************/
 }
 
 void inProgressLoop () {
 
-  //check surroundings for NEW NEIGHBORS or neighbors in the resolution state 
+  // if a neighboring piece is in resolution, then we should be as well
   FOREACH_FACE(f) {
-    if (!isValueReceivedOnFaceExpired(f) && getLastValueReceivedOnFace(f) == MOVE_RESOLVING) { //next to a resolved neighbor
+    if (!isValueReceivedOnFaceExpired(f) && getLastValueReceivedOnFace(f) == MOVE_RESOLVING) {
       gameState = MOVE_RESOLVING;
     }
   }
-  
+
   /**********************************************************
-   *       [BEGIN] REPLACE THIS WITH YOUR TURN MECHANISM
+           [BEGIN] REPLACE THIS WITH YOUR TURN MECHANISM
    **********************************************************/
-  if(buttonReleased()) {
+  if (buttonReleased()) {
     gameState = MOVE_RESOLVING;
   }
   /**********************************************************
-   *       [END] REPLACE THIS WITH YOUR TURN MECHANISM
+           [END] REPLACE THIS WITH YOUR TURN MECHANISM
    **********************************************************/
 }
 
@@ -112,53 +112,53 @@ void resolvingLoop () {
   }
 
   if (gameState == MOVE_IDLE) {
-    totalMoves++; //this is where we increment the total turn count 
+    totalMoves++; //this is where we increment the total turn count
   }
 
 }
 
 
 /*------------------------------------------------------------
- *                  DISPLAY LOOPS
- *------------------------------------------------------------*/
+                    DISPLAY LOOPS
+  ------------------------------------------------------------*/
 void displayIdle() {
-    setColor(OFF);
-    setTurnIndicator ();
+  setColor(OFF);
+  setTurnIndicator ();
 }
 
 void displayInProgress() {
-    setColor(WHITE);
-    setTurnIndicator ();
+  setColor(WHITE);
+  setTurnIndicator ();
 }
 
 void displayResolving() {
-    setColor(OFF);
-    setTurnIndicator ();
+  setColor(OFF);
+  setTurnIndicator ();
 }
 
 /*------------------------------------------------------------
- *                Get the Current Player
- *------------------------------------------------------------*/
+                  Get the Current Player
+  ------------------------------------------------------------*/
 byte getCurrentPlayer() {
   return totalMoves % playerCount;  //we indicate a player's turn based on the movecount and the number of players
 }
 
 /*------------------------------------------------------------
- *            Light up one pixel to show Player
- *------------------------------------------------------------*/
+              Light up one pixel to show Player
+  ------------------------------------------------------------*/
 void setTurnIndicator () {
   byte currentPlayer = getCurrentPlayer();
   setFaceColor(0, getColorForPlayer(currentPlayer)); //each player is represented by a different color. The 0 face color indicates the player's turn
 }
 
 /*------------------------------------------------------------
- *            Gets a unique color for each player
- *------------------------------------------------------------*/
+              Gets a unique color for each player
+  ------------------------------------------------------------*/
 Color getColorForPlayer( byte playerIndex ) {
 
   Color c;
 
-  switch(playerIndex) {
+  switch (playerIndex) {
     case 0: c = RED;      break;
     case 1: c = YELLOW;   break;
     case 2: c = ORANGE;   break;
