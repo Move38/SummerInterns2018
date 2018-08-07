@@ -1,125 +1,174 @@
+/*
+ *  Template for creating a game that has a move action that needs to be communicated across
+ *  the entire board. i.e. Each move a player makes causes a stepwise reaction
+ *
+ *  TODO: If a single move is missed, the counters will get out of sync, one possible sol'n
+ *  is to share the turn count and make sure that you are up to date with the highest. This
+ *  of course does not allow a Blink to understand the context of the previous moves, so
+ *  catching up in the game may be useful or not depending on the needs. If the game simply
+ *  needs to end after 40 moves, then catching up the game counter is a worthy sol'n.
+ */
+
 byte gameState;
 byte playerCount = 4; //how many players there are
 byte currentPlayer; //whose turn it is
 byte totalMoves = 0;
 
-//color index to represent four players. For testing purposes the player count is 4; future games will need an input mechanism to determine a variable amount of players
-Color playerColors[] = {RED, YELLOW, ORANGE, MAGENTA};
-
-bool neighborStates[6]; //6 faces to each Blink
-
 enum State { //three states for each of the player's moves
-  NOMINAL, //0
-  FRACTURED, //1
-  RESOLVING, //2
+  MOVE_IDLE,          // 0
+  MOVE_IN_PROGRESS,   // 1
+  MOVE_RESOLVING      // 2
 };
 
 void setup() {
+  // INIT variables
   totalMoves = 0;
-  gameState = NOMINAL;
-  setColor(OFF);
-  setTurnIndicator ();
-  FOREACH_FACE(f) {
-    if (!isValueReceivedOnFaceExpired(f)) {
-      neighborStates[f] = true;
-    } else {
-      neighborStates[f] = false;
-    }
-  }
+  gameState = MOVE_IDLE;
 }
 
+/*###################
+ *      BEGIN LOOP
+ *###################*/
 void loop() {
 
-  if (buttonDoubleClicked()) { //this is to reset a Blink to the default behavior, only used for testing/debugging purposes
-    setup();
+  if (isAlone()) {
+    setup();  // seperate Blinks to reset our turn counter (for demo purposes)
   }
 
   //determine which state Blink is in, send to appropriate loop behavior
   switch (gameState) {
-    case NOMINAL: //this state is activated when all Blinks are together
-      nominalLoop();
-
-      break;
-
-    case FRACTURED: //this state is when one or more Blink(s) are separated from the rest of the Blinks
-      fracturedLoop();
-
-      break;
-
-    case RESOLVING: //a resolution state that transitions to NOMINAL immediately; to prevent the two other case states from interfering with each othe r
-      resolvingLoop();
-      break;
-
+    case MOVE_IDLE:         idleLoop();           break;
+    case MOVE_IN_PROGRESS:  inProgressLoop();      break;
+    case MOVE_RESOLVING:    resolvingLoop();       break;
   }
 
-  FOREACH_FACE(f) {
-    if (!isValueReceivedOnFaceExpired(f)) {
-      neighborStates[f] = true;
-    } else {
-      neighborStates[f] = false;
-    }
+  // display game state
+  switch (gameState) {
+    case MOVE_IDLE:         displayIdle();        break;
+    case MOVE_IN_PROGRESS:  displayInProgress();  break;
+    case MOVE_RESOLVING:    displayResolving();  break;
   }
 
+  // communicate our state to others
   setValueSentOnAllFaces(gameState); //relay our game state to our neighbors 
 
 }
+/*###################
+ *      END LOOP
+ *###################*/
 
-void nominalLoop () {
-  //check surroundings for MISSING NEIGHBORS or neighbors already in distress
+
+
+/*------------------------------------------------------------
+ *                  MOVE STATE LOGIC
+ *------------------------------------------------------------*/
+void idleLoop () {
+
+  // check surroundings for neighbor in progress
   FOREACH_FACE(f) {
-    if (isValueReceivedOnFaceExpired(f) && neighborStates[f] == true) { //missing neighbor
-      gameState = FRACTURED;
-    } else if (!isValueReceivedOnFaceExpired(f) && getLastValueReceivedOnFace(f) == FRACTURED) { //detecting a distressed neighbor
-      gameState = FRACTURED;
+    // if a neighboring piece is move in progress, then we should be as well
+    if (!isValueReceivedOnFaceExpired(f) && getLastValueReceivedOnFace(f) == MOVE_IN_PROGRESS) { 
+      gameState = MOVE_IN_PROGRESS;
     }
   }
 
-  if (gameState == FRACTURED) { //turn WHITE to indicate fractured state 
-    setColor(WHITE);
-    setTurnIndicator ();
+  /**********************************************************
+   *       [BEGIN] REPLACE THIS WITH YOUR TURN MECHANISM
+   **********************************************************/
+  if(buttonPressed()) {
+      gameState = MOVE_IN_PROGRESS;    
   }
+  /**********************************************************
+   *       [END] REPLACE THIS WITH YOUR TURN MECHANISM
+   **********************************************************/
 }
 
-void fracturedLoop () {
+void inProgressLoop () {
 
   //check surroundings for NEW NEIGHBORS or neighbors in the resolution state 
   FOREACH_FACE(f) {
-    if (!isValueReceivedOnFaceExpired(f) && neighborStates[f] == false) { //new neighbor
-      gameState = RESOLVING;
-    } else if (!isValueReceivedOnFaceExpired(f) && getLastValueReceivedOnFace(f) == RESOLVING) { //next to a resolved neighbor
-      gameState = RESOLVING;
+    if (!isValueReceivedOnFaceExpired(f) && getLastValueReceivedOnFace(f) == MOVE_RESOLVING) { //next to a resolved neighbor
+      gameState = MOVE_RESOLVING;
     }
   }
-
-  if (gameState == RESOLVING) { //no color to indicate resolution state 
-    setColor(OFF);
-    setTurnIndicator ();
+  
+  /**********************************************************
+   *       [BEGIN] REPLACE THIS WITH YOUR TURN MECHANISM
+   **********************************************************/
+  if(buttonReleased()) {
+    gameState = MOVE_RESOLVING;
   }
-
+  /**********************************************************
+   *       [END] REPLACE THIS WITH YOUR TURN MECHANISM
+   **********************************************************/
 }
 
 void resolvingLoop () {
-  gameState = NOMINAL;
+  gameState = MOVE_IDLE;
   FOREACH_FACE(f) {
-    if (!isValueReceivedOnFaceExpired(f) && getLastValueReceivedOnFace(f) == FRACTURED) {
-      gameState = RESOLVING;
+    if (!isValueReceivedOnFaceExpired(f) && getLastValueReceivedOnFace(f) == MOVE_IN_PROGRESS) {
+      gameState = MOVE_RESOLVING;
     }
   }
 
-  if (gameState == NOMINAL) {
-    setColor(OFF);
+  if (gameState == MOVE_IDLE) {
     totalMoves++; //this is where we increment the total turn count 
-    setTurnIndicator ();
-
   }
 
 }
 
-void setTurnIndicator () {
-  currentPlayer = totalMoves % playerCount; //we indicate a player's turn based on the movecount and the number of players
-  setFaceColor(0, playerColors[currentPlayer]); //each player is represented by a different color. The 0 face color indicates the player's turn
 
+/*------------------------------------------------------------
+ *                  DISPLAY LOOPS
+ *------------------------------------------------------------*/
+void displayIdle() {
+    setColor(OFF);
+    setTurnIndicator ();
 }
 
+void displayInProgress() {
+    setColor(WHITE);
+    setTurnIndicator ();
+}
+
+void displayResolving() {
+    setColor(OFF);
+    setTurnIndicator ();
+}
+
+/*------------------------------------------------------------
+ *                Get the Current Player
+ *------------------------------------------------------------*/
+byte getCurrentPlayer() {
+  return totalMoves % playerCount;  //we indicate a player's turn based on the movecount and the number of players
+}
+
+/*------------------------------------------------------------
+ *            Light up one pixel to show Player
+ *------------------------------------------------------------*/
+void setTurnIndicator () {
+  byte currentPlayer = getCurrentPlayer();
+  setFaceColor(0, getColorForPlayer(currentPlayer)); //each player is represented by a different color. The 0 face color indicates the player's turn
+}
+
+/*------------------------------------------------------------
+ *            Gets a unique color for each player
+ *------------------------------------------------------------*/
+Color getColorForPlayer( byte playerIndex ) {
+
+  Color c;
+
+  switch(playerIndex) {
+    case 0: c = RED;      break;
+    case 1: c = YELLOW;   break;
+    case 2: c = ORANGE;   break;
+    case 3: c = MAGENTA;  break;
+    case 4: c = BLUE;     break;
+    case 5: c = GREEN;    break;
+    default: c = OFF;     break;
+  }
+
+  return c;
+}
 
 
