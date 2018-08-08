@@ -188,7 +188,7 @@ void loop(){
 void destroyApple(){
   //if here is apple, apple disappear, reset appleface
       if(numSnakeArray[appleFace] == APPLE){
-        Serial.println("apple destroy");
+        Serial.println("Apple destroy");
         numSnakeArray[appleFace] = 0;
 
         //reset timer to generate timer
@@ -335,7 +335,7 @@ void updateSnakeArray(){
       startFace = snakeFace;
     }else if(passToFace != IMPOSSIBLEINDEX){
       startFace = passToFace;
-      Serial.println("start at passto");
+      //Serial.println("start at passto");
     }else{
       Serial.println("no snake here");
       return;
@@ -397,7 +397,7 @@ void updateSnakeArray(){
             Serial.println(originalNum);
             //do nothing, and if it's the tail, then end passing to the face
             if(originalNum == snakeLength){
-              Serial.println("Tail leaves this tile");
+              Serial.println("---Tail leaves this tile---");
               
               passToFace = IMPOSSIBLEINDEX;
             }
@@ -430,9 +430,9 @@ void updateSnakeArray(){
               if(numSnakeArray[newNum] == APPLE){
                 //eat apple
                 destroyApple();
-                Serial.print("Hits APPLE");
+                Serial.print("Hits APPLE, ");
                 //max length is 6
-                if(snakeLength <= 6){
+                if(snakeLength < 6){
 
                   isSnakeLengthIncreased = true;
 
@@ -566,10 +566,14 @@ void detectMessage(){
           byte isSnakeLengthIncreased = 0;
 
           if(numSnakeArray[f] == APPLE){
-           destroyApple();
-           Serial.println("hit apple during transfering.");
-           snakeLength++;
-           isSnakeLengthIncreased = 1;
+            destroyApple();
+            Serial.println("hit apple during transfering.");
+
+            if(snakeLength < FACE_COUNT){
+              snakeLength++;
+              isSnakeLengthIncreased = 1;
+            }
+            
           }
 
           //updateSnakeArray();
