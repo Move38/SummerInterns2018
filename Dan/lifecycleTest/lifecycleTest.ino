@@ -26,12 +26,12 @@ byte programType = PROGRAMA;
 bool programInitiator = false;
 
 #define NUM_MENU_OPTIONS  2
-#define WAKE_DELAY      200
-#define WAKE_DURATION  1000
+#define WAKE_DELAY      100
+#define WAKE_DURATION   300
 #define SLEEP_DELAY     200
 #define LEARN_DURATION 2000
 #define PROG_DURATION  2000
-#define READY_DURATION  2000
+#define READY_DURATION  500
 
 #define MENU_TIMEOUT_DURATION    5000
 #define SLEEP_TIMEOUT_DURATION  60000
@@ -77,7 +77,7 @@ void loop() {
   }
 
   // put idle blinks to sleep
-  if (idleTimer.isExpired() && blinkState != SLEEP) {
+  if (idleTimer.isExpired()) {
     blinkState = SLEEP;
   }
 
@@ -170,12 +170,12 @@ void gameLoop() {
         blinkState = YAWN;
         sleepDelayTimer.set(SLEEP_DELAY);
       }
-      else if (neighbor == PROGRAMA && currentGame != GAMEA) {     // Neighbor is programming us game A
+      else if (neighbor == PROGRAMA) {     // Neighbor is programming us game A
 
         blinkState = LEARNA;
         learnTimer.set(LEARN_DURATION);
       }
-      else if (neighbor == PROGRAMB && currentGame != GAMEB) {    // Neighbor is programming us game B
+      else if (neighbor == PROGRAMB) {    // Neighbor is programming us game B
 
         blinkState = LEARNB;
         learnTimer.set(LEARN_DURATION);
@@ -229,7 +229,7 @@ void programLoop() {
 
         byte neighbor = getLastValueReceivedOnFace(f);
 
-        if (neighbor == LEARNA || neighbor == LEARNB || neighbor == READY) {
+        if (neighbor == PROGRAMA || neighbor == PROGRAMB || neighbor == READY) {
           // don't do anything
         }
         else {
@@ -255,11 +255,6 @@ void programLoop() {
     }
   }
 
-  
-//  if (menuIdleTimer.isExpired()) {
-//    blinkState = currentGame;
-//    programInitiator = false;
-//  }
 }
 
 byte getMyKnownGame() {
@@ -323,8 +318,7 @@ void readyLoop() {
 
     if (isSuroundedByCurrentGameOrReady) { //survived the loop while still true
       blinkState = currentGame;
-      // TODO: Why is the idle timer getting set here? Isn't that for putting a Blink to fake sleep?
-      // idleTimer.set(1000);
+      programInitiator = false;
     }
   }
 }
