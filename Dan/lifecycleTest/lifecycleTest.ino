@@ -21,7 +21,6 @@ enum menuStates {
 };
 byte menuState = MENU_PROG;
 
-bool menuToggle = true;
 byte currentGame = GAMEB;
 byte programType = PROGRAMA;
 bool programInitiator = false;
@@ -30,12 +29,12 @@ bool programInitiator = false;
 #define WAKE_DELAY      200
 #define WAKE_DURATION  1000
 #define SLEEP_DELAY     200
-#define LEARN_DURATION 6000
-#define PROG_DURATION  6000
-#define READY_DURATION  200
+#define LEARN_DURATION 2000
+#define PROG_DURATION  2000
+#define READY_DURATION  2000
 
 #define MENU_TIMEOUT_DURATION    5000
-#define SLEEP_TIMEOUT_DURATION  20000
+#define SLEEP_TIMEOUT_DURATION  60000
 
 Timer idleTimer;
 Timer menuIdleTimer;
@@ -198,7 +197,9 @@ void menuLoop() {
     if (menuState == MENU_PROG) {//head to the correct programming mode
       blinkState = programType;
       programInitiator = true;
-    } else if (menuState == MENU_SLEEP) {
+      progTimer.set(PROG_DURATION);
+    }
+    else if (menuState == MENU_SLEEP) {
       blinkState = YAWN;
     }
   }
@@ -218,43 +219,47 @@ void programLoop() {
   // button cleanup
   buttonSingleClicked();
 
-  //here we need to determine if it's safe to move to READY state
-  //to qualify, all neighbors must be in PROGRAMX or READY. No learners left
-  bool readyCheck = true;
+  if (progTimer.isExpired()) {
+    //here we need to determine if it's safe to move to READY state
+    //to qualify, all neighbors must be in PROGRAMX or READY. No learners left
+    bool readyCheck = true;
 
-  FOREACH_FACE(f) {
-    if (!isValueReceivedOnFaceExpired(f)) {//only do this check on spots WITH neighbors
+    FOREACH_FACE(f) {
+      if (!isValueReceivedOnFaceExpired(f)) {//only do this check on spots WITH neighbors
 
-      byte neighbor = getLastValueReceivedOnFace(f);
+        byte neighbor = getLastValueReceivedOnFace(f);
 
-      if (neighbor == LEARNA || neighbor == LEARNB || neighbor == READY) {
-        // don't do anything
+        if (neighbor == LEARNA || neighbor == LEARNB || neighbor == READY) {
+          // don't do anything
+        }
+        else {
+          // if a neighbor is still
+          readyCheck = false;
+        }
       }
-      else {
-        // if a neighbor is still
-        readyCheck = false;
+    }
+
+    // if we are alone, we are not ready to be ready :)
+    if (isAlone()) {
+      readyCheck = false;
+    }
+
+    //so the face loop is over. If the readyCheck is true, we're golden
+    if (readyCheck) {  // only become ready after our programming time is done and our neighbors have received the game
+      blinkState = READY;
+      readyTimer.set(READY_DURATION);
+      if (programInitiator) { //so for the one who begins things, THIS is where they change currentGame
+        currentGame = getMyKnownGame();
+        //      blinkState = currentGame; // update to the game we know and shared when our neighbors have learned and are ready
       }
     }
   }
 
-  // if we are alone, we are not ready to be ready :)
-  if (isAlone()) {
-    readyCheck = false;
-  }
-
-  //so the face loop is over. If the readyCheck is true, we're golden
-  if (readyCheck) { // && progTimer.isExpired()) {  // only become ready after our programming time is done and our neighbors have received the game
-    blinkState = READY;
-    if (programInitiator) { //so for the one who begins things, THIS is where they change currentGame
-      currentGame = getMyKnownGame();
-//      blinkState = currentGame; // update to the game we know and shared when our neighbors have learned and are ready
-    }
-  }
-
-  if (menuIdleTimer.isExpired()) {
-    blinkState = currentGame;
-    programInitiator = false;
-  }
+  
+//  if (menuIdleTimer.isExpired()) {
+//    blinkState = currentGame;
+//    programInitiator = false;
+//  }
 }
 
 byte getMyKnownGame() {
@@ -298,26 +303,29 @@ void readyLoop() {
   buttonSingleClicked();
   buttonDoubleClicked();
 
-  //so now we look at all neighbors and determine if all are in READY or GAME so we can transition to game state
-  bool isSuroundedByCurrentGameOrReady = true;
+  if (readyTimer.isExpired()) {
 
-  FOREACH_FACE(f) {
+    //so now we look at all neighbors and determine if all are in READY or GAME so we can transition to game state
+    bool isSuroundedByCurrentGameOrReady = true;
 
-    if (!isValueReceivedOnFaceExpired(f)) {//only check occupied faces
+    FOREACH_FACE(f) {
 
-      byte neighbor = getLastValueReceivedOnFace(f);
+      if (!isValueReceivedOnFaceExpired(f)) {//only check occupied faces
 
-      if (neighbor != READY && neighbor != currentGame) {
-        //this face is good
-        isSuroundedByCurrentGameOrReady = false;
+        byte neighbor = getLastValueReceivedOnFace(f);
+
+        if (neighbor != READY && neighbor != currentGame) {
+          //this face is good
+          isSuroundedByCurrentGameOrReady = false;
+        }
       }
     }
-  }
 
-  if (isSuroundedByCurrentGameOrReady) { //survived the loop while still true
-    blinkState = currentGame;
-    // TODO: Why is the idle timer getting set here? Isn't that for putting a Blink to fake sleep?
-    // idleTimer.set(1000);
+    if (isSuroundedByCurrentGameOrReady) { //survived the loop while still true
+      blinkState = currentGame;
+      // TODO: Why is the idle timer getting set here? Isn't that for putting a Blink to fake sleep?
+      // idleTimer.set(1000);
+    }
   }
 }
 
@@ -377,12 +385,17 @@ void displayProgram() {
 }
 
 void displayLearn() {
-  setColor(dim(GREEN, 127));
+  setColor(OFF);
+  setColorOnFace(GREEN, 0);
+  setColorOnFace(GREEN, 1);
+  setColorOnFace(GREEN, 2);
 }
 
 void displayReady() {
-  setColor(GREEN);
-  setColorOnFace(WHITE, 1);
+  setColor(OFF);
+  setColorOnFace(GREEN, 1);
+  setColorOnFace(GREEN, 3);
+  setColorOnFace(GREEN, 5);
 }
 
 void displayYawn() {
