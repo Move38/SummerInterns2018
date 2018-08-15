@@ -19,6 +19,7 @@ void loop() {
     isSpinning = true;
     spinRandomizer = rand(5) + 54;
     spinIncrement = 20;
+    setValueSentOnAllFaces(0);
   }
 
   if (isSpinning && !isSlowing) {
@@ -55,6 +56,7 @@ void slowingLoop() {
     isSpinning = false;
     isSlowing = false;
     setColorOnFace(spinColors[currentFace], currentFace);
+    setValueSentOnAllFaces(currentFace+1);
   }
 }
 

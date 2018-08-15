@@ -21,9 +21,9 @@ byte colorIndex;
 // color random
 Color colors[] = {    
   RED,            
-  YELLOW,         
-  GREEN,          
-  CYAN,           
+  ORANGE,         
+  YELLOW,          
+  GREEN,           
   BLUE,           
   MAGENTA,        
 }; 

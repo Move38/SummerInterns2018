@@ -12,7 +12,7 @@
 ServicePortSerial Serial;
 
 byte colorIndex;
-
+bool isHeroHere = false;
 
 enum MessageMode{
   EMPTY = 0,//null
