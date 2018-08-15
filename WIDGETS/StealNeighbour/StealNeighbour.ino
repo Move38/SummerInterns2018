@@ -12,7 +12,7 @@
 ServicePortSerial Serial;
 
 byte colorIndex;
-
+bool isHeroHere;
 
 enum MessageMode{
   EMPTY = 0,//null
@@ -31,7 +31,7 @@ void setup() {
 
 void loop() {
 
-  if(buttonDoubleClicked()){
+  if(buttonSingleClicked()){
     //change state
     if(isHeroHere){
       isHeroHere = false;
@@ -45,7 +45,7 @@ void loop() {
   }
 
   //get it only once
-  bool isStealNeighbour = buttonSingleClicked();
+  bool isStealNeighbour = buttonDoubleClicked();
 
   FOREACH_FACE(f) {
 

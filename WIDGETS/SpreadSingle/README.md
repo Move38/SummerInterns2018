@@ -4,6 +4,6 @@ Short Bio (280 characters :)
 Shiyun Liu is a game designer and game developer, working as game design intern at Move38.
 
 ## Stuff in this repo
-1. Spread color only to directly touching pieces
-2. Use multi-message-mode
-3. Sublime & Arduino
+1. Spread color
+2. experiments
+3. tools
