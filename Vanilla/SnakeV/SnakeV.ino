@@ -130,7 +130,7 @@ void loop(){
 
     //can be reset when gameplay and gameover
     if(buttonDoubleClicked() || ifNeighborsAre(RESET,0,0)){
-      setColor(BLUE);
+      setColor(WHITE);
       state = RESET;
 
       setValueSentOnAllFaces(RESET);
@@ -157,7 +157,7 @@ void loop(){
 
 void gameplayLoop(){
 
-    //println(snakeFace);
+    //Serial.println(snakeFace);
     //if snake head is here
     if(snakeFace != IMPOSSIBLEINDEX){
 
@@ -181,7 +181,6 @@ void gameplayLoop(){
 
         }
         
-        //return;
       }else{
 
         moveSnakeForward();
@@ -189,6 +188,7 @@ void gameplayLoop(){
       }
 
     }else{
+      
       //detect move forward message and length change messgae
       detectMessage();
 
@@ -201,6 +201,7 @@ void gameplayLoop(){
       drawFace();
     }
 }
+
 void destroyApple(){
   //if here is apple, apple disappear, reset appleface
       if(numSnakeArray[appleFace] == APPLE){
@@ -245,19 +246,15 @@ void generateApple(){
 
 }
 
-
 void initSnake(){
-  appleFace = IMPOSSIBLEINDEX;
-
   snakeHue = 255;
-  snakeFace = passToFace = passFromFace = IMPOSSIBLEINDEX;
+  snakeFace = passToFace = passFromFace = appleFace = IMPOSSIBLEINDEX;
   snakeLength = 0;
   snakeDirection = CLOCKWISE;
   for(int i = 0;i < FACE_COUNT;i++){
     numSnakeArray[i] = 0;
   }
 }
-
 
 bool ifNeighborsAre(byte neededState, byte state1, byte state2){
   bool forReturn = (neededState>0)? false: true;
@@ -325,6 +322,7 @@ void moveSnakeForward(){
 
 void updateSnakeArray(byte updateMode){
 
+  //check if snake have already been dead
   if(snakeLength < 1){
     Serial.println("snake is dead");
     state = GAMEOVER;
@@ -462,8 +460,6 @@ void updateSnakeArray(byte updateMode){
 
     if(data > 0){
       //only set data once at a time
-        //setValueSentOnFace(data,passFromFace);
- 
         Serial.print("send update : mode:");
         Serial.print((data>>1)&3);
          Serial.print(" index:");
@@ -484,16 +480,20 @@ void detectMessage(){
 
       byte data = getLastValueReceivedOnFace(f);
 
-      if(data <= 4){
-          return;
-      }
-      MessageMode mode = static_cast<MessageMode>(data&1);
+
+      byte mode = data&1;
+
       if(didValueOnFaceChange(f)){
-        Serial.print("Mode Changes: ");
+        Serial.print("check face ");
+        Serial.print(f);
+        Serial.print(": mode ");
         Serial.println(mode);
       }
 
-      
+
+      if(data <= 4){
+          continue;
+      }
 
       if(mode == UPDATE){//1
 
@@ -501,8 +501,6 @@ void detectMessage(){
           //only when it calls the right index of the first body
           byte lastestGoneSnake = (data >> 3);
           byte snakeLengthChangeMode = ((data>>1)&3);
-
-          
           
           if(numSnakeArray[passToFace] == lastestGoneSnake){
 
