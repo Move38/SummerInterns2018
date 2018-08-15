@@ -23,7 +23,8 @@ ServicePortSerial Serial;
 enum State{
   READY     = 1,  //no snake spawn yet. if long pressed, spawn a snake, set every connected pieces to gameplay
   GAMEPLAY  = 2,  //a snake has spawned and other pieces in gameplay can get the message
-  GAMEOVER  = 3
+  GAMEOVER  = 3,
+  RESET = 4,
 };
 
 enum MessageMode{
@@ -75,57 +76,88 @@ void setup() {
   
   Serial.begin();
   Serial.println("SnakeV Debug");
-  reset();
-}
-
-
-//check if player wants to reset all the pieces
-bool checkReset(){
-  bool isReset = false;;
-  //double click to reset
-  if(buttonDoubleClicked()){
-    Serial.println("double pressed to reset");
-    isReset = true;
-  }else{
-
-    FOREACH_FACE(f){
-    //if here are connected blinks send ready
-      if(!isValueReceivedOnFaceExpired(f) /*&& didValueOnFaceChange(f)*/){
-        if(getLastValueReceivedOnFace(f) == READY && state != READY){
-          Serial.println("Called to reset to ready");
-          isReset = true;
-        }
-      }
-    }
-  }
-
-  return isReset;
+  state = READY;
+  initSnake();
+  setColor(GREEN);
+  setValueSentOnAllFaces(READY);
 }
 
 void loop(){
   // put your main code here, to run repeatedly:
-
-  //reset is available at any time
-  if(checkReset()){
-    reset();
-    //sendStateOnConnectedFace(FACE_COUNT);
-    return;
-  }
+    FOREACH_FACE(f){
+      if(didValueOnFaceChange(f)){
+        Serial.print("State:");
+        Serial.print(state);
+        Serial.print(": value on face");
+        Serial.print(f);
+        Serial.print(" change to ");
+        Serial.println(getLastValueReceivedOnFace(f));
+      }
+    }
   
   if(state == READY){
 
+    bool isGame = false;
     //When press button during ready, spawnSnake and tell other blinks to gaming
     if(buttonLongPressed()){
       Serial.println("SnakeV spawn");
       spawnSnake();
-    }else{
-      //check if other blinks send begin message
-      checkBeginMessage();
+      isGame = true;
+
+    }else if(ifNeighborsAre(GAMEPLAY, GAMEPLAY, READY)){
+      Serial.println("called to game");
+      isGame = true; 
+    }
+
+    if(isGame){
+      setColor(OFF);
+      state = GAMEPLAY;
+      setValueSentOnAllFaces(GAMEPLAY);
     }
 
   }
-  else if(state == GAMEPLAY){
-    
+  else if(state == RESET){
+   // setColor(BLUE);
+    if(ifNeighborsAre(0,RESET,READY)){
+      Serial.println("reset to ready");
+      initSnake();
+      state = READY;
+      setColor(GREEN);
+      setValueSentOnAllFaces(READY);
+    }
+
+  }else{
+
+    //can be reset when gameplay and gameover
+    if(buttonDoubleClicked() || ifNeighborsAre(RESET,0,0)){
+      setColor(BLUE);
+      state = RESET;
+
+      setValueSentOnAllFaces(RESET);
+      return;
+    }
+
+    if(state == GAMEPLAY){
+      //if a neihbor is GAMEOVER, become GAMEOVER
+      if(ifNeighborsAre(GAMEOVER,0,0)){
+        setColor(RED);
+        state = GAMEOVER;
+        setValueSentOnAllFaces(GAMEOVER);
+        Serial.println("called to gameover");
+        return;
+      }
+
+      gameplayLoop();
+
+    }
+
+  }
+  
+}
+
+void gameplayLoop(){
+
+    //println(snakeFace);
     //if snake head is here
     if(snakeFace != IMPOSSIBLEINDEX){
 
@@ -164,21 +196,15 @@ void loop(){
       generateApple();
     }
 
-    //draw face very frame during gameplay state
-    drawFace();
-    
-  }
-  else if(state == GAMEOVER){
-    
-  }
-  
+    if(state == GAMEPLAY){
+      //draw face very frame during gameplay state
+      drawFace();
+    }
 }
-
-
 void destroyApple(){
   //if here is apple, apple disappear, reset appleface
       if(numSnakeArray[appleFace] == APPLE){
-        Serial.println("Apple destroy");
+        //Serial.println("Apple destroy");
         numSnakeArray[appleFace] = 0;
 
         //reset timer to generate timer
@@ -201,7 +227,7 @@ void generateApple(){
 
       if(numSnakeArray[randFace] == 0){
 
-        Serial.println("apple generate");
+        //Serial.println("apple generate");
         numSnakeArray[randFace] = APPLE;
         appleFace = randFace;
         //set timer for self-destroy
@@ -220,11 +246,7 @@ void generateApple(){
 }
 
 
-void reset(){
-  setColor(GREEN);
-
-  state = READY;
-
+void initSnake(){
   appleFace = IMPOSSIBLEINDEX;
 
   snakeHue = 255;
@@ -234,40 +256,42 @@ void reset(){
   for(int i = 0;i < FACE_COUNT;i++){
     numSnakeArray[i] = 0;
   }
-  setValueSentOnAllFaces(EMPTYVALUE);
 }
 
-void sendStateOnConnectedFace(byte face){
-  Serial.println("clear value on faces");
-  setValueSentOnAllFaces(EMPTYVALUE);
-  FOREACH_FACE(f){
-    //if here are connected blinks
-      if(!isValueReceivedOnFaceExpired(f) && f != face){
-        // Serial.print("set new value(state):");
-        // Serial.print(state);
-        // Serial.print(" on face ");
-        // Serial.println(f);
-        setValueSentOnFace(state,f);
-      }
-    }
-}
 
-//check begin messaga, only called during ready
-void checkBeginMessage(){
+bool ifNeighborsAre(byte neededState, byte state1, byte state2){
+  bool forReturn = (neededState>0)? false: true;
   FOREACH_FACE(f){
     //if here are connected blinks
-    //Serial.println()
     if(!isValueReceivedOnFaceExpired(f)){
       byte data = getLastValueReceivedOnFace(f);
-      
-      if(data == GAMEPLAY && state != GAMEPLAY){
-        Serial.println("Gaming");
 
-        setStateToGameplayAndSendOutToAllConnected(f);
+      if(state1 > 0){
+        if(data != state1){
+
+          if(state2 > 0){
+
+            if(data != state2){
+
+              return false;
+            }
+
+          }else{
+
+            return false;
+          }
+          
+        }
+      }
+
+      if(neededState > 0 && data == neededState){
+        forReturn = true;
       }
     }
       
   }
+
+  return forReturn;
 }
 
 //(change dir randomly) 
@@ -301,10 +325,11 @@ void moveSnakeForward(){
 
 void updateSnakeArray(byte updateMode){
 
-  if(snakeLength <= 0){
+  if(snakeLength < 1){
     Serial.println("snake is dead");
-    setFaceColor(WHITE,snakeFace);
     state = GAMEOVER;
+    setValueSentOnAllFaces(GAMEOVER);
+    setColor(RED);
     return;
   }
     
@@ -343,7 +368,8 @@ void updateSnakeArray(byte updateMode){
             if(originalNum == snakeLength 
               /*&& updateMode != LENGTH_INCREASE*/){
               //when the length is not increased
-              Serial.println("---Tail leaves this tile---");
+              Serial.println("---Tail leaves---");
+              setValueSentOnFace(EMPTYVALUE,passToFace);
               passToFace = IMPOSSIBLEINDEX;
 
             }
@@ -407,8 +433,9 @@ void updateSnakeArray(byte updateMode){
                 //still send data when it decreases so that the next one delete the last tail
                 data = ((snakeLength+1)<<3) + (updateMode<<1) + UPDATE;
               }
-              passFromFace = IMPOSSIBLEINDEX;
+              setValueSentOnFace(EMPTYVALUE,passFromFace);
 
+              passFromFace = IMPOSSIBLEINDEX;
 
             }else{
 
@@ -416,7 +443,7 @@ void updateSnakeArray(byte updateMode){
               newArray[i] = originalNum + 1; 
               //send message to passFromFace, ask it to update array
               data = (newArray[i]<<3) + (updateMode<<1) + UPDATE;
-              
+              setValueSentOnFace(data,passFromFace);
             }
             
           }
@@ -433,30 +460,13 @@ void updateSnakeArray(byte updateMode){
       newArray[appleFace] = APPLE;
     }
 
-    // //when snake Length Increase, change snakelength
-    // if(updateMode == LENGTH_INCREASE){
-
-    //   snakeLength++;
-    //   //send messgae to the next blinks through snakeface
-    //   Serial.print("Length updates: ");
-    //   Serial.println(snakeLength);
-
-    // }else if(updateMode == LENGTH_DECREASE){
-    //   if(passFromFace != IMPOSSIBLEINDEX){
-
-    //   }
-      
-    //   Serial.print("Length updates: ");
-    //   Serial.println(snakeLength);
-    // }
-
     if(data > 0){
       //only set data once at a time
-        setValueSentOnFace(data,passFromFace);
+        //setValueSentOnFace(data,passFromFace);
  
-        Serial.print("send update : length");
-        Serial.print((data&4)>>2);
-         Serial.print(" & index");
+        Serial.print("send update : mode:");
+        Serial.print((data>>1)&3);
+         Serial.print(" index:");
         Serial.print(data>>3);
         Serial.print(" to passFromFace");
         Serial.println(passFromFace);
@@ -474,7 +484,7 @@ void detectMessage(){
 
       byte data = getLastValueReceivedOnFace(f);
 
-      if(data < 4){
+      if(data <= 4){
           return;
       }
       MessageMode mode = static_cast<MessageMode>(data&1);
@@ -652,14 +662,8 @@ void spawnSnake(){
   numSnakeArray[1] = 2;
   numSnakeArray[2] = 1;
   
-  setStateToGameplayAndSendOutToAllConnected(FACE_COUNT);
+  
+  //setStateToGameplayAndSendOutToAllConnected(FACE_COUNT);
 }
 
-//send out game play state and init timer
-void setStateToGameplayAndSendOutToAllConnected(byte face){
-  setColor(OFF);
-  //tell all the other blinks to change state to gameplay 
-  state = GAMEPLAY;
-  sendStateOnConnectedFace(face);
-  faceIncreTimer.set(snakeFaceIncrement_ms);
-}
+
