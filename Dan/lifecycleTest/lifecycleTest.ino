@@ -104,6 +104,12 @@ void wakeLoop() {
   }
 }
 
+/*
+   Play game until one of the following is sensed
+   1. Menu Action (alone and pressed for > n seconds)
+   2. Neighbor is putting me to sleep (KO_STATE)
+   3. Neighbor is programming me (PROGRAM_STATE)
+*/
 void gameLoop() {
   if (animTimer.isExpired()) {// do a basic game animation thing
     if (blinkState == GAMEA) {//just a simple animation that turns on and off faces randomly
@@ -231,28 +237,34 @@ void programLoop() {
 
   //here we need to determine if it's safe to move to READY state
   //to qualify, all neighbors must be in PROGRAMX or READY. No learners left
-  if (!isAlone()) {//we have some neighbors, lets look at them
-    bool readyCheck = false;
-    FOREACH_FACE(f) {
-      if (!isValueReceivedOnFaceExpired(f)) {//only do this check on spots WITH neighbors
-        if (getLastValueReceivedOnFace(f) == PROGRAMA || getLastValueReceivedOnFace(f) == PROGRAMB || getLastValueReceivedOnFace(f) == READY) {
-          //this face is good
-          readyCheck = true;
-        } else {
-          //in some other state
-          readyCheck = false;
-        }
-      }
-    }
-    //so the face loop is over. If the readyCheck is true, we're golden
-    if (readyCheck) {
-      blinkState = READY;
-      setColor(dim(GREEN, 16));//just set it to a dim green
-      if (programInitiator) { //so for the one who begins things, THIS is where they change currentGame
-        currentGame = programType;
+  bool readyCheck = true;
+
+  FOREACH_FACE(f) {
+    if (!isValueReceivedOnFaceExpired(f)) {//only do this check on spots WITH neighbors
+
+      byte neighbor = getLastValueReceivedOnFace(f);
+
+      if (neighbor != PROGRAMA && neighbor != PROGRAMB && neighbor != READY) {
+        //in some other state
+        readyCheck = false;
       }
     }
   }
+
+  // if we are alone, we are not ready to be ready :)
+  if (isAlone()) {
+    readyCheck = false;
+  }
+
+  //so the face loop is over. If the readyCheck is true, we're golden
+  if (readyCheck) {
+    blinkState = READY;
+    setColor(dim(GREEN, 16));//just set it to a dim green
+    if (programInitiator) { //so for the one who begins things, THIS is where they change currentGame
+      currentGame = getMyKnownGame();
+    }
+  }
+
 
   if (menuIdleTimer.isExpired()) {
     blinkState = currentGame;
@@ -263,6 +275,20 @@ void programLoop() {
     }
     programInitiator = false;
   }
+}
+
+byte getMyKnownGame() {
+
+  byte game;
+
+  if (programType == PROGRAMA) {
+    game = GAMEA;
+  }
+  else if (programType == PROGRAMB) {
+    game = GAMEB;
+  }
+
+  return game;
 }
 
 void learnLoop() {
@@ -290,14 +316,16 @@ void learnLoop() {
 void readyLoop() {
   //so now we look at all neighbors and determine if all are in READY or GAME so we can transition to game state
   bool gameCheck = false;
+  
   FOREACH_FACE(f) {
+  
     if (!isValueReceivedOnFaceExpired(f)) {//only check occupied faces
-      if (getLastValueReceivedOnFace(f) == READY || getLastValueReceivedOnFace(f) == currentGame) {
+      
+      byte neighbor = getLastValueReceivedOnFace(f);
+      
+      if (neighbor == READY || neighbor == currentGame) {
         //this face is good
         gameCheck = true;
-      } else {
-        //this face is no good
-        gameCheck = false;
       }
     }
   }
@@ -310,6 +338,7 @@ void readyLoop() {
       setColor(RED);
     }
     animFrame = 0;
+    // TODO: Why is the idle timer getting set here? Isn't that for putting a Blink to fake sleep?
     idleTimer.set(1000);
   }
 }
@@ -347,5 +376,12 @@ void yawnLoop() {
     buttonDoubleClicked();
     buttonMenuPressed();
   }
+}
+
+/*########################################
+ *     ONLY FOR MASTER API BRANCH
+ *########################################*/
+bool buttonMenuPressed() {
+  return buttonLongPressed();
 }
 
